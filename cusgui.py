@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 
 #gui
+from threading import Thread
+from kivy.uix.boxlayout import BoxLayout
+
+from kivy.uix.progressbar import ProgressBar
+from kivy.animation import Animation
+from kivy.metrics import dp
+
 from kivy.resources import resource_add_path
 from kivy.uix.popup import Popup
 from kivy.app import App
@@ -54,6 +61,27 @@ from tflite_support.task import core
 from tflite_support.task import processor
 from tflite_support.task import vision
 import utils
+
+def set_angle(angle):
+    duty = angle / 18 + 2
+    GPIO.output(servo_pin, True)
+    pwm.ChangeDutyCycle(duty)
+    time.sleep(0.5)
+    GPIO.output(servo_pin, False)
+    pwm.ChangeDutyCycle(0)
+
+def move_servo():
+    set_angle(45)
+    time.sleep(0.5)
+    set_angle(0)
+    
+def alert(message):
+    popup = Popup(title="Warning",
+                title_font='/home/nine/Desktop/bottlepet/Niramit-Regular.ttf',
+                content=Label(text=message,font_name='THSarabunNew'),
+                size_hint=(None, None), size=(400, 200))
+    popup.open()
+
 
 
 def run(model: str, camera_id: int, width: int, height: int, num_threads: int,
@@ -131,26 +159,7 @@ def run(model: str, camera_id: int, width: int, height: int, num_threads: int,
         if label == "Bottle-pet" :
           num+=1
           print(num)
-    def set_angle(angle):
-        duty = angle / 18 + 2
-        GPIO.output(servo_pin, True)
-        pwm.ChangeDutyCycle(duty)
-        time.sleep(0.5)
-        GPIO.output(servo_pin, False)
-        pwm.ChangeDutyCycle(0)
-
-    def move_servo():
-        set_angle(45)
-        time.sleep(0.5)
-        set_angle(0)
     
-    def alert(message):
-        popup = Popup(title="คำเตือน",
-                    title_font='/home/nine/Desktop/bottlepet/Niramit-Regular.ttf',
-                    content=Label(text=message,font_name='THSarabunNew'),
-                    size_hint=(None, None), size=(400, 200))
-        popup.open()
-
     if num==5:
         if height < 200 :
            global num1
@@ -165,10 +174,10 @@ def run(model: str, camera_id: int, width: int, height: int, num_threads: int,
 
     elapsed_time = time.time() - start_time2
     if elapsed_time > 10:
-        alert("เกิดข้อผิดพลาด กรุณาเปลี่ยนขวด หรือ ใส่ขวดใหม่ อีกครัง")
+        alert("An error occurred. Please reinsert or replace the bottle")
         break
         
-    print(elapsed_time)
+    #print(elapsed_time)
     # Draw keypoints and edges on input image
     image = utils.visualize(image, detection_result)
     # print(detection_result)
@@ -234,17 +243,54 @@ def main():
   run(args.model, int(args.cameraId), args.frameWidth, args.frameHeight,
       int(args.numThreads), bool(args.enableEdgeTPU))
 
+# Custom Loading Screen
+class LoadingScreen(Popup):
+    def __init__(self, **kwargs):
+        super(LoadingScreen, self).__init__(**kwargs)
+        self.title = 'Processing data'
+        self.title_size = '18sp'
+        self.title_font = 'THSarabunNew'
+        self.size_hint = (None, None)
+        self.size = (300, 200)
+        self.auto_dismiss = False
+        
+        content = BoxLayout(orientation='vertical', padding=20, spacing=15)
+        
+        label = Label(
+            text='please wait a moment...',
+            font_name='THSarabunNew',
+            font_size='20sp'
+        )
+        
+        self.progress = ProgressBar(max=100, value=0, size_hint_y=None, height=dp(20))
+        
+        content.add_widget(label)
+        content.add_widget(self.progress)
+        
+        self.content = content
+        self._start_progress()
+        
+    def _start_progress(self):
+        anim = Animation(value=100, duration=2)
+        anim.bind(on_complete=self._progress_complete)
+        anim.start(self.progress)
+        
+    def _progress_complete(self, *args):
+        # Reset and repeat animation for continuous effect
+        self.progress.value = 0
+        self._start_progress()
+
+
 class MainScreen(Screen):
     def __init__(self, **kwargs):
         super(MainScreen, self).__init__(**kwargs)
         layout = FloatLayout()
-        # Set background color or image using canvas.before
         with layout.canvas.before:
-            Color(0.53, 0.81, 0.92)
+            Color(0.88, 1, 0.88, 1) 
             self.rect = Rectangle(size=Window.size, pos=layout.pos)
         img = Image(source='QR Code.png', size_hint=(0.5, 0.5), pos_hint={'center_x': 0.5, 'center_y': 0.6})
         layout.add_widget(img)
-        label_scan = Label(text="สแกน QR Code เพิ่มเพื่อน หรือ Login",font_name='THSarabunNew', font_size='40sp', size_hint=(None, None), pos_hint={'x': 0.45, 'y': 0.1}, color=(0, 0, 0, 1))
+        label_scan = Label(text="Please scan the QR code to sign in.",font_name='THSarabunNew', font_size='40sp', size_hint=(None, None), pos_hint={'x': 0.45, 'y': 0.1}, color=(0, 0, 0, 1))
         layout.add_widget(label_scan)
         self.add_widget(layout)
         self.event = None
@@ -271,7 +317,7 @@ class SecondScreen(Screen):
         global num1,num2,row2
         layout = FloatLayout()
         with layout.canvas.before:
-            Color(0.53, 0.81, 0.92)
+            Color(0.88, 1, 0.88, 1) 
             self.rect = Rectangle(size=Window.size, pos=layout.pos)
         print(row2)
         self.sensor_event = None
@@ -281,24 +327,66 @@ class SecondScreen(Screen):
             self.sensor_event = Clock.schedule_interval(self.check_sensor, 3)
         
 
-        label_top = Label(text="สวัสดี"+" "+str(usname),font_name='THSarabunNew', font_size='40sp', size_hint=(None, None), pos_hint={'x': 0.45, 'top': 1}, color=(0, 0, 0, 1))
+        label_top = Label(
+            text="Welcome, " + str(usname),
+            font_name='THSarabunNew', font_size='50sp',
+            size_hint=(None, None), pos_hint={'x': 0.45, 'top': 0.95},
+            color=(0, 0, 0, 1)
+        )
         layout.add_widget(label_top)
 
+        # Small bottle image
+        img_small = Image(
+            source='bottle.png',  
+            size_hint=(0.2, 0.2),       
+            pos_hint={'x': 0.15, 'y': 0.5}
+        )
+        layout.add_widget(img_small)
+
+        # Big bottle image
+        img_big = Image(
+            source='bottle.png',
+            size_hint=(0.25, 0.25),     
+            pos_hint={'x': 0.63, 'y': 0.5}
+        )
+        layout.add_widget(img_big)
+
         # smallbottle
-        label_left = Label(text='ขวดเล็ก',font_name='THSarabunNew', font_size='40sp', size_hint=(None, None), pos_hint={'x': 0.2, 'y': 0.7},color=(0, 0, 0, 1))
+        label_left = Label(
+            text='Small bottle',
+            font_name='THSarabunNew', font_size='40sp',
+            size_hint=(None, None), pos_hint={'x': 0.2, 'y': 0.35},
+            color=(0, 0, 0, 1)
+        )
         layout.add_widget(label_left)
 
         # bigbottle
-        label_right = Label(text='ขวดใหญ่',font_name='THSarabunNew', font_size='40sp', size_hint=(None, None), pos_hint={'x': 0.7, 'y': 0.7},color=(0, 0, 0, 1))
+        label_right = Label(
+            text='Big bottle',
+            font_name='THSarabunNew', font_size='40sp',
+            size_hint=(None, None), pos_hint={'x': 0.7, 'y': 0.35},
+            color=(0, 0, 0, 1)
+        )
         layout.add_widget(label_right)
 
+        # ===== Numbers under the text =====
+
         # num1
-        self.label_num1 = Label(text=str(num1), font_size='40sp', size_hint=(None, None), pos_hint={'x': 0.2, 'y': 0.6},color=(0, 0, 0, 1))
+        self.label_num1 = Label(
+            text=str(num1), font_size='40sp',
+            size_hint=(None, None), pos_hint={'x': 0.2, 'y': 0.25},
+            color=(0, 0, 0, 1)
+        )
         layout.add_widget(self.label_num1)
 
         # num2
-        self.label_num2 = Label(text=str(num2), font_size='40sp', size_hint=(None, None), pos_hint={'x': 0.7, 'y': 0.6},color=(0, 0, 0, 1))
+        self.label_num2 = Label(
+            text=str(num2), font_size='40sp',
+            size_hint=(None, None), pos_hint={'x': 0.7, 'y': 0.25},
+            color=(0, 0, 0, 1)
+        )
         layout.add_widget(self.label_num2)
+
 
         #addnum1
         button_addnum1 = Button(text='add', size_hint=(0.1, 0.1), pos_hint={'center_x': 0.27, 'y': 0.5},background_color=(1, 0, 0))
@@ -311,12 +399,29 @@ class SecondScreen(Screen):
         layout.add_widget(button_addnum2)
 
         #submit
-        button_submit = Button(text='สะสมคะแนน',font_name='THSarabunNew', font_size='40sp', size_hint=(0.3, 0.1), pos_hint={'center_x': 0.5, 'y': 0.2},background_color=(0, 1, 0))
-        button_submit.bind(on_press=self.submit)
+        button_submit = Button(text='Confirm Points',font_name='THSarabunNew', font_size='40sp', size_hint=(0.4, 0.1), pos_hint={'center_x': 0.5, 'y': 0.1},background_color=(0, 0.6, 0.4, 1))
+        button_submit.bind(on_press=self.start_process)
         layout.add_widget(button_submit)
 
         self.add_widget(layout)
         # self.sensor_event = None
+    
+    def show_loading(self):
+        self.popup = LoadingScreen()
+        self.popup.open()
+
+    def close_loading(self):
+        if hasattr(self, 'popup') and self.popup:
+            self.popup.dismiss()
+
+    def start_process(self, instance):
+        if num1>0 or num2>0:
+            # Show loading popup
+            self.show_loading()
+            # Run process in separate thread
+            Thread(target=self.submit).start()
+        else:
+            alert("Please put in a bottle.")
 
     def check_sensor(self, dt) :
         print("wait sensor")
@@ -337,11 +442,13 @@ class SecondScreen(Screen):
         num2 += 1
         self.label_num2.text = str(num2)
 
-    def submit(self, instance):
+    def submit(self):
         global num1,num2
         sum=(num1*10)+(num2*20)
         userid=workbook.sheet1.cell(row2+1, 1).value
+        name=workbook.sheet1.cell(row2+1, 2).value
         user_id = userid
+
         #database
         sheet=workbook.worksheet("sheet2")
         row3 = len(sheet.get_all_records())
@@ -361,12 +468,11 @@ class SecondScreen(Screen):
 
         #send message
         now = datetime.now().strftime("%d/%m/%Y %H:%M")
-        msg = FlexMessage.from_dict({
+        msg_contents = {
             "type": "flex",
-            "altText": "ใบเสร็จสะสมคะแนน",
+            "altText": "เนเธเน€เธชเธฃเนเธเธชเธฐเธชเธกเธเธฐเนเธเธ!",
             "contents": {
                 "type": "bubble",
-                # "spacing": "none",
                 "header": {
                     "type": "box",
                     "layout": "vertical",
@@ -374,7 +480,7 @@ class SecondScreen(Screen):
                     "contents": [
                         {
                             "type": "text",
-                            "text": "ใบเสร็จสะสมคะแนน",
+                            "text": "เนเธเน€เธชเธฃเนเธเธชเธฐเธชเธกเธเธฐเนเธเธ",
                             "weight": "bold",
                             "color": "#1DB446",
                             "size": "xl",
@@ -386,109 +492,12 @@ class SecondScreen(Screen):
                     "type": "box",
                     "layout": "vertical",
                     "paddingTop": "none", 
-                    "contents": [
-                        {
-                            "type": "box",
-                            "layout": "vertical",
-                            "margin": "lg",
-                            "spacing": "sm",
-                            "contents": [
-                                {
-                                    "type": "box",
-                                    "layout": "horizontal",
-                                    "contents": [
-                                        {
-                                            "type": "text",
-                                            "text": "ขวดเล็ก",
-                                            "size": "md",
-                                            "color": "#555555",
-                                            "flex": 0
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": f"{num1} ขวด  {num1*10} คะแนน",
-                                            "size": "md",
-                                            "color": "#111111",
-                                            "align": "end"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "type": "box",
-                                    "layout": "horizontal",
-                                    "contents": [
-                                        {
-                                            "type": "text",
-                                            "text": "ขวดใหญ่",
-                                            "size": "md",
-                                            "color": "#555555",
-                                            "flex": 0
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": f"{num2} ขวด {num2*20} คะแนน",
-                                            "size": "md",
-                                            "color": "#111111",
-                                            "align": "end"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "type": "separator",
-                                    "margin": "md"
-                                },
-                                {
-                                    "type": "box",
-                                    "layout": "horizontal",
-                                    "margin": "md",
-                                    "contents": [
-                                        {
-                                            "type": "text",
-                                            "text": "คะแนนรวม",
-                                            "size": "md",
-                                            "color": "#555555",
-                                            "weight": "bold",
-                                            "flex": 0
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": f"{sum} คะแนน",
-                                            "size": "md",
-                                            "color": "#111111",
-                                            "align": "end",
-                                            "weight": "bold"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "type": "box",
-                                    "layout": "horizontal",
-                                    "contents": [
-                                        {
-                                            "type": "text",
-                                            "text": "คะแนนทั้งหมด",
-                                            "size": "md",
-                                            "color": "#555555",
-                                            "weight": "bold",
-                                            "flex": 0
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": f"{total} คะแนน",
-                                            "size": "md",
-                                            "color": "#1DB446",
-                                            "align": "end",
-                                            "weight": "bold"
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
+                    "contents": []
                 },
                 "footer": {
                     "type": "box",
                     "layout": "vertical",
+                    "paddingTop": "none", 
                     "contents": [
                         {
                             "type": "text",
@@ -500,7 +509,111 @@ class SecondScreen(Screen):
                     ]
                 }
             }
+        }
+
+        if num1 >= 1:
+            msg_contents["contents"]["body"]["contents"].append({
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "เธเธงเธ”เน€เธฅเนเธ",
+                        "size": "md",
+                        "color": "#555555",
+                        "flex": 0
+                    },
+                    {
+                        "type": "text",
+                        "text": f"{num1} เธเธงเธ” {num1 * 10} เธเธฐเนเธเธ",
+                        "size": "md",
+                        "color": "#111111",
+                        "align": "end"
+                    }
+                ]
+            })
+
+        if num2 > 0:
+            msg_contents["contents"]["body"]["contents"].append({
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "เธเธงเธ”เนเธซเธเน",
+                        "size": "md",
+                        "color": "#555555",
+                        "flex": 0
+                    },
+                    {
+                        "type": "text",
+                        "text": f"{num2} เธเธงเธ” {num2 * 20} เธเธฐเนเธเธ",
+                        "size": "md",
+                        "color": "#111111",
+                        "align": "end"
+                    }
+                ]
+            })
+
+        msg_contents["contents"]["body"]["contents"].append({
+            "type": "separator",
+            "margin": "md"
         })
+
+        msg_contents["contents"]["body"]["contents"].append({
+            "type": "box",
+            "layout": "horizontal",
+            "margin": "md",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "เธเธฐเนเธเธเธฃเธงเธก",
+                    "size": "md",
+                    "color": "#555555",
+                    "weight": "bold",
+                    "flex": 0
+                },
+                {
+                    "type": "text",
+                    "text": f"{sum} เธเธฐเนเธเธ",
+                    "size": "md",
+                    "color": "#111111",
+                    "align": "end",
+                    "weight": "bold"
+                }
+            ]
+        })
+
+        msg_contents["contents"]["body"]["contents"].append({
+            "type": "box",
+            "layout": "horizontal",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "เธเธฐเนเธเธเธ—เธฑเนเธเธซเธกเธ”",
+                    "size": "md",
+                    "color": "#555555",
+                    "weight": "bold",
+                    "flex": 0
+                },
+                {
+                    "type": "text",
+                    "text": f"{total} เธเธฐเนเธเธ",
+                    "size": "md",
+                    "color": "#1DB446",
+                    "align": "end",
+                    "weight": "bold"
+                }
+            ]
+        })
+
+        msg_contents["contents"]["body"]["contents"].append({
+            "type": "separator",
+            "margin": "md"
+        })
+
+        msg = FlexMessage.from_dict(msg_contents)
+
         push_message_request = PushMessageRequest(
             to=user_id,
             messages=[msg]
@@ -518,7 +631,12 @@ class SecondScreen(Screen):
             self.sensor_event.cancel()
             self.sensor_event = None
         print(self.sensor_event)
+        Clock.schedule_once(self.back_to_main_screen)
+        
+
+    def back_to_main_screen(self, dt):
         self.manager.current = 'main'
+        self.close_loading()
 
 class MyApp(App):
     def build(self):
