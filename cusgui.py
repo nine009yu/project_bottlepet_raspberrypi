@@ -20,7 +20,8 @@ from kivy.clock import Clock
 from kivy.graphics import Color, Rectangle
 from kivy.core.window import Window
 from kivy.core.text import LabelBase
-LabelBase.register(name='THSarabunNew', fn_regular='/home/nine/Desktop/bottlepet/Niramit-Regular.ttf')
+LabelBase.register(name='THSarabunNew', fn_regular='/home/nine/Desktop/bottlepet/Roboto-VariableFont_wdth,wght.ttf')
+
 
 # Google Sheet
 import gspread
@@ -44,11 +45,15 @@ line_bot_api = MessagingApi(api_client)
 import RPi.GPIO as GPIO
 sensor_pin = 17
 servo_pin = 18
+servo_pin2 = 14
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(sensor_pin, GPIO.IN)
 GPIO.setup(servo_pin, GPIO.OUT)
-pwm = GPIO.PWM(servo_pin, 50)
-pwm.start(0)
+GPIO.setup(servo_pin2, GPIO.OUT)
+pwm1 = GPIO.PWM(servo_pin, 50)
+pwm2 = GPIO.PWM(servo_pin2, 50)
+pwm1.start(0)
+pwm2.start(0)
 
 
 """Main script to run the object detection routine."""
@@ -65,21 +70,44 @@ import utils
 def set_angle(angle):
     duty = angle / 18 + 2
     GPIO.output(servo_pin, True)
-    pwm.ChangeDutyCycle(duty)
+    pwm1.ChangeDutyCycle(duty)
     time.sleep(0.5)
     GPIO.output(servo_pin, False)
-    pwm.ChangeDutyCycle(0)
+    pwm1.ChangeDutyCycle(0)
 
 def move_servo():
-    set_angle(45)
+    set_angle(90)
     time.sleep(0.5)
     set_angle(0)
+def set_angle2(angle):
+    duty = angle / 18 + 2
+    GPIO.output(servo_pin2, True)
+    pwm2.ChangeDutyCycle(duty)
+    time.sleep(0.5)
+    GPIO.output(servo_pin2, False)
+    pwm2.ChangeDutyCycle(0)
+
+def move_servo2():
+    set_angle2(90)
     
+def move_servo3():
+    set_angle2(0)
+
 def alert(message):
-    popup = Popup(title="Warning",
-                title_font='/home/nine/Desktop/bottlepet/Niramit-Regular.ttf',
-                content=Label(text=message,font_name='THSarabunNew'),
-                size_hint=(None, None), size=(400, 200))
+    popup = Popup(
+        title="Warning",
+        title_font='/home/nine/Desktop/bottlepet/Roboto-VariableFont_wdth,wght.ttf',
+        title_size='30sp',
+        content=Label(
+            text=message,
+            font_name='THSarabunNew',
+            font_size='30sp',  
+            halign='center',
+            valign='middle'
+        ),
+        size_hint=(None, None),
+        size=(800, 300)  
+    )
     popup.open()
 
 
@@ -197,7 +225,7 @@ def run(model: str, camera_id: int, width: int, height: int, num_threads: int,
     # Stop the program if the ESC key is pressed.
     if cv2.waitKey(1) == 27:
       break
-    cv2.imshow('object_detector', image)
+    # cv2.imshow('object_detector', image)
 
   cap.release()
   cv2.destroyAllWindows()
@@ -248,10 +276,10 @@ class LoadingScreen(Popup):
     def __init__(self, **kwargs):
         super(LoadingScreen, self).__init__(**kwargs)
         self.title = 'Processing data'
-        self.title_size = '18sp'
+        self.title_size = '30sp'
         self.title_font = 'THSarabunNew'
         self.size_hint = (None, None)
-        self.size = (300, 200)
+        self.size = (800, 300)
         self.auto_dismiss = False
         
         content = BoxLayout(orientation='vertical', padding=20, spacing=15)
@@ -259,7 +287,7 @@ class LoadingScreen(Popup):
         label = Label(
             text='please wait a moment...',
             font_name='THSarabunNew',
-            font_size='20sp'
+            font_size='30sp'
         )
         
         self.progress = ProgressBar(max=100, value=0, size_hint_y=None, height=dp(20))
@@ -286,14 +314,21 @@ class MainScreen(Screen):
         super(MainScreen, self).__init__(**kwargs)
         layout = FloatLayout()
         with layout.canvas.before:
-            Color(0.88, 1, 0.88, 1) 
-            self.rect = Rectangle(size=Window.size, pos=layout.pos)
-        img = Image(source='QR Code.png', size_hint=(0.5, 0.5), pos_hint={'center_x': 0.5, 'center_y': 0.6})
+            Color(0.88, 1, 0.88, 1)
+            self.rect = Rectangle(size=layout.size, pos=layout.pos)
+
+        layout.bind(size=self._update_rect, pos=self._update_rect)
+        img = Image(source='QR Code.png', size_hint=(1, 1), pos_hint={'center_x': 0.5, 'center_y': 0.6})
         layout.add_widget(img)
-        label_scan = Label(text="Please scan the QR code to sign in.",font_name='THSarabunNew', font_size='40sp', size_hint=(None, None), pos_hint={'x': 0.45, 'y': 0.1}, color=(0, 0, 0, 1))
+        label_scan = Label(text="Please scan the QR code to sign in.",font_name='THSarabunNew', font_size='80sp', 
+                                size_hint=(None, None), pos_hint={'center_x': 0.5, 'y': 0.2}, color=(0, 0, 0, 1))
         layout.add_widget(label_scan)
         self.add_widget(layout)
         self.event = None
+    
+    def _update_rect(self, instance, value):
+        self.rect.size = instance.size
+        self.rect.pos = instance.pos
     
     def on_pre_enter(self):
         if not self.event: 
@@ -329,8 +364,8 @@ class SecondScreen(Screen):
 
         label_top = Label(
             text="Welcome, " + str(usname),
-            font_name='THSarabunNew', font_size='50sp',
-            size_hint=(None, None), pos_hint={'x': 0.45, 'top': 0.95},
+            font_name='THSarabunNew', font_size='80sp',
+            size_hint=(None, None), pos_hint={'center_x': 0.5, 'top': 0.95},
             color=(0, 0, 0, 1)
         )
         layout.add_widget(label_top)
@@ -339,7 +374,7 @@ class SecondScreen(Screen):
         img_small = Image(
             source='bottle.png',  
             size_hint=(0.2, 0.2),       
-            pos_hint={'x': 0.15, 'y': 0.5}
+            pos_hint={'x': 0.18, 'y': 0.5}
         )
         layout.add_widget(img_small)
 
@@ -347,24 +382,24 @@ class SecondScreen(Screen):
         img_big = Image(
             source='bottle.png',
             size_hint=(0.25, 0.25),     
-            pos_hint={'x': 0.63, 'y': 0.5}
+            pos_hint={'x': 0.59, 'y': 0.5}
         )
         layout.add_widget(img_big)
 
         # smallbottle
         label_left = Label(
             text='Small bottle',
-            font_name='THSarabunNew', font_size='40sp',
-            size_hint=(None, None), pos_hint={'x': 0.2, 'y': 0.35},
+            font_name='THSarabunNew', font_size='70sp',
+            size_hint=(None, None), pos_hint={'x': 0.25, 'y': 0.35},
             color=(0, 0, 0, 1)
         )
         layout.add_widget(label_left)
 
         # bigbottle
         label_right = Label(
-            text='Big bottle',
-            font_name='THSarabunNew', font_size='40sp',
-            size_hint=(None, None), pos_hint={'x': 0.7, 'y': 0.35},
+            text='Large bottle',
+            font_name='THSarabunNew', font_size='70sp',
+            size_hint=(None, None), pos_hint={'x': 0.69, 'y': 0.35},
             color=(0, 0, 0, 1)
         )
         layout.add_widget(label_right)
@@ -373,33 +408,33 @@ class SecondScreen(Screen):
 
         # num1
         self.label_num1 = Label(
-            text=str(num1), font_size='40sp',
-            size_hint=(None, None), pos_hint={'x': 0.2, 'y': 0.25},
+            text=str(num1), font_size='70sp',
+            size_hint=(None, None), pos_hint={'x': 0.25, 'y': 0.25},
             color=(0, 0, 0, 1)
         )
         layout.add_widget(self.label_num1)
 
         # num2
         self.label_num2 = Label(
-            text=str(num2), font_size='40sp',
-            size_hint=(None, None), pos_hint={'x': 0.7, 'y': 0.25},
+            text=str(num2), font_size='70sp',
+            size_hint=(None, None), pos_hint={'x': 0.69, 'y': 0.25},
             color=(0, 0, 0, 1)
         )
         layout.add_widget(self.label_num2)
 
 
-        #addnum1
-        button_addnum1 = Button(text='add', size_hint=(0.1, 0.1), pos_hint={'center_x': 0.27, 'y': 0.5},background_color=(1, 0, 0))
-        button_addnum1.bind(on_press=self.add_num1)
-        layout.add_widget(button_addnum1)
+        # #addnum1
+        # button_addnum1 = Button(text='add', size_hint=(0.1, 0.1), pos_hint={'center_x': 0.27, 'y': 0.5},background_color=(1, 0, 0))
+        # button_addnum1.bind(on_press=self.add_num1)
+        # layout.add_widget(button_addnum1)
         
-        #addnum2
-        button_addnum2 = Button(text='add', size_hint=(0.1, 0.1), pos_hint={'center_x': 0.77, 'y': 0.5},background_color=(1, 0, 0))
-        button_addnum2.bind(on_press=self.add_num2)
-        layout.add_widget(button_addnum2)
+        # #addnum2
+        # button_addnum2 = Button(text='add', size_hint=(0.1, 0.1), pos_hint={'center_x': 0.77, 'y': 0.5},background_color=(1, 0, 0))
+        # button_addnum2.bind(on_press=self.add_num2)
+        # layout.add_widget(button_addnum2)
 
         #submit
-        button_submit = Button(text='Confirm Points',font_name='THSarabunNew', font_size='40sp', size_hint=(0.4, 0.1), pos_hint={'center_x': 0.5, 'y': 0.1},background_color=(0, 0.6, 0.4, 1))
+        button_submit = Button(text='Confirm Points',font_name='THSarabunNew', font_size='60sp', size_hint=(0.4, 0.1), pos_hint={'center_x': 0.5, 'y': 0.1},background_color=(0, 0.6, 0.4, 1))
         button_submit.bind(on_press=self.start_process)
         layout.add_widget(button_submit)
 
@@ -422,14 +457,19 @@ class SecondScreen(Screen):
             Thread(target=self.submit).start()
         else:
             alert("Please put in a bottle.")
+    
+    
+        
 
     def check_sensor(self, dt) :
         print("wait sensor")
         if GPIO.input(sensor_pin)==0:
+            move_servo2()
             main()
             global num1,num2
             self.label_num1.text = str(num1)
             self.label_num2.text = str(num2)
+            move_servo3()
             # Clock.schedule_once(lambda dt: self.update_label_num1(num1))
 
     def add_num1(self, instance):
@@ -483,15 +523,20 @@ class SecondScreen(Screen):
                             "text": "เนเธเน€เธชเธฃเนเธเธชเธฐเธชเธกเธเธฐเนเธเธ",
                             "weight": "bold",
                             "color": "#1DB446",
-                            "size": "xl",
+                            "size": "lg",
                             "align": "center"
+                        },
+                        {
+                            "type": "separator",
+                            "margin": "xl"
                         }
                     ]
                 },
                 "body": {
                     "type": "box",
+                    "margin": "xl",
                     "layout": "vertical",
-                    "paddingTop": "none", 
+                    # "paddingTop": "none", 
                     "contents": []
                 },
                 "footer": {
@@ -519,14 +564,14 @@ class SecondScreen(Screen):
                     {
                         "type": "text",
                         "text": "เธเธงเธ”เน€เธฅเนเธ",
-                        "size": "md",
+                        "size": "sm",
                         "color": "#555555",
                         "flex": 0
                     },
                     {
                         "type": "text",
                         "text": f"{num1} เธเธงเธ” {num1 * 10} เธเธฐเนเธเธ",
-                        "size": "md",
+                        "size": "sm",
                         "color": "#111111",
                         "align": "end"
                     }
@@ -541,14 +586,14 @@ class SecondScreen(Screen):
                     {
                         "type": "text",
                         "text": "เธเธงเธ”เนเธซเธเน",
-                        "size": "md",
+                        "size": "sm",
                         "color": "#555555",
                         "flex": 0
                     },
                     {
                         "type": "text",
                         "text": f"{num2} เธเธงเธ” {num2 * 20} เธเธฐเนเธเธ",
-                        "size": "md",
+                        "size": "sm",
                         "color": "#111111",
                         "align": "end"
                     }
@@ -557,18 +602,18 @@ class SecondScreen(Screen):
 
         msg_contents["contents"]["body"]["contents"].append({
             "type": "separator",
-            "margin": "md"
+            "margin": "xl"
         })
 
         msg_contents["contents"]["body"]["contents"].append({
             "type": "box",
             "layout": "horizontal",
-            "margin": "md",
+            "margin": "xl",
             "contents": [
                 {
                     "type": "text",
                     "text": "เธเธฐเนเธเธเธฃเธงเธก",
-                    "size": "md",
+                    "size": "sm",
                     "color": "#555555",
                     "weight": "bold",
                     "flex": 0
@@ -576,7 +621,7 @@ class SecondScreen(Screen):
                 {
                     "type": "text",
                     "text": f"{sum} เธเธฐเนเธเธ",
-                    "size": "md",
+                    "size": "sm",
                     "color": "#111111",
                     "align": "end",
                     "weight": "bold"
@@ -591,7 +636,7 @@ class SecondScreen(Screen):
                 {
                     "type": "text",
                     "text": "เธเธฐเนเธเธเธ—เธฑเนเธเธซเธกเธ”",
-                    "size": "md",
+                    "size": "sm",
                     "color": "#555555",
                     "weight": "bold",
                     "flex": 0
@@ -599,7 +644,7 @@ class SecondScreen(Screen):
                 {
                     "type": "text",
                     "text": f"{total} เธเธฐเนเธเธ",
-                    "size": "md",
+                    "size": "sm",
                     "color": "#1DB446",
                     "align": "end",
                     "weight": "bold"
@@ -609,7 +654,7 @@ class SecondScreen(Screen):
 
         msg_contents["contents"]["body"]["contents"].append({
             "type": "separator",
-            "margin": "md"
+            "margin": "xl"
         })
 
         msg = FlexMessage.from_dict(msg_contents)
@@ -650,6 +695,7 @@ row2 = 0
 num1 = 0
 num2 = 0
 if __name__ == '__main__':
+    Window.fullscreen = True
     MyApp().run()
     GPIO.cleanup()
     
