@@ -184,9 +184,11 @@ def run(model: str, camera_id: int, width: int, height: int, num_threads: int,
         # for i, height in enumerate(heights):
         #   print(f"Detection {i + 1} height: {height}")
         print(f"Detected object: {label}")
-        if label == "Bottle-pet" :
+        # if label == "Bottle-pet" :
+        if label == "BottlePet" :
           num+=1
           print(num)
+          
     
     if num==5:
         if height < 200 :
@@ -239,7 +241,8 @@ def main():
       help='Path of the object detection model.',
       required=False,
       #default='efficientdet_lite0.tflite')
-      default='pet.tflite')
+    #   default='pet.tflite')
+    default='BottlePet.tflite')
   parser.add_argument(
       '--cameraId', help='Id of camera.', required=False, type=int, default=0)
   parser.add_argument(
