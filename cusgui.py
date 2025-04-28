@@ -36,7 +36,7 @@ workbook = client.open_by_key(sheet_id)
 from datetime import datetime
 from linebot.v3.messaging import MessagingApi, ApiClient, Configuration
 from linebot.v3.messaging.models import TextMessage, PushMessageRequest, FlexMessage
-channel_access_token = 'jNvR7g1S3S77nNKORcW1XDK6NdoqMXPEIC5UmJTEyUHjcsLojubyyEmgFFOFzV2vVHoHKr5Lk41Z42FDlDWzrys0FcvibgvzzcUWixXE00vHKV9uSyuuGxGG2YhXZg0lpJljdpLTS0YSHJ/Jr66Y+wdB04t89/1O/w1cDnyilFU='
+channel_access_token  = 'jNvR7g1S3S77nNKORcW1XDK6NdoqMXPEIC5UmJTEyUHjcsLojubyyEmgFFOFzV2vVHoHKr5Lk41Z42FDlDWzrys0FcvibgvzzcUWixXE00vHKV9uSyuuGxGG2YhXZg0lpJljdpLTS0YSHJ/Jr66Y+wdB04t89/1O/w1cDnyilFU='
 configuration = Configuration(access_token=channel_access_token)
 api_client = ApiClient(configuration)
 line_bot_api = MessagingApi(api_client)
@@ -67,18 +67,26 @@ from tflite_support.task import processor
 from tflite_support.task import vision
 import utils
 
+
 def set_angle(angle):
     duty = angle / 18 + 2
-    GPIO.output(servo_pin, True)
     pwm1.ChangeDutyCycle(duty)
-    time.sleep(0.5)
-    GPIO.output(servo_pin, False)
-    pwm1.ChangeDutyCycle(0)
+    time.sleep(0.01)  
 
 def move_servo():
-    set_angle(90)
-    time.sleep(0.5)
-    set_angle(0)
+    for angle in range(0, 101, 4):  
+        set_angle(angle)
+        time.sleep(0.02)  
+
+    time.sleep(0.5)  
+
+    for angle in range(100, -1, -4):  
+        set_angle(angle)
+        time.sleep(0.02)  
+
+    pwm1.ChangeDutyCycle(0)  
+
+  
 def set_angle2(angle):
     duty = angle / 18 + 2
     GPIO.output(servo_pin2, True)
@@ -88,10 +96,12 @@ def set_angle2(angle):
     pwm2.ChangeDutyCycle(0)
 
 def move_servo2():
-    set_angle2(90)
+    set_angle2(80)
+    
     
 def move_servo3():
     set_angle2(0)
+    
 
 def alert(message):
     popup = Popup(
@@ -184,8 +194,8 @@ def run(model: str, camera_id: int, width: int, height: int, num_threads: int,
         # for i, height in enumerate(heights):
         #   print(f"Detection {i + 1} height: {height}")
         print(f"Detected object: {label}")
-        # if label == "Bottle-pet" :
-        if label == "BottlePet" :
+        if label == "Bottle-pet" :
+        # if label == "BottlePet" :
           num+=1
           print(num)
           
@@ -205,6 +215,8 @@ def run(model: str, camera_id: int, width: int, height: int, num_threads: int,
     elapsed_time = time.time() - start_time2
     if elapsed_time > 10:
         alert("An error occurred. Please reinsert or replace the bottle")
+        move_servo3()
+        time.sleep(5)
         break
         
     #print(elapsed_time)
@@ -241,8 +253,8 @@ def main():
       help='Path of the object detection model.',
       required=False,
       #default='efficientdet_lite0.tflite')
-    #   default='pet.tflite')
-    default='BottlePet.tflite')
+      default='pet.tflite')
+    #   default='BottlePet2.tflite')
   parser.add_argument(
       '--cameraId', help='Id of camera.', required=False, type=int, default=0)
   parser.add_argument(
