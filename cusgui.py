@@ -346,6 +346,8 @@ class MainScreen(Screen):
         self.rect.pos = instance.pos
     
     def on_pre_enter(self):
+        global row1
+        row1 = len(workbook.sheet1.get_all_records())
         if not self.event: 
             self.event = Clock.schedule_interval(self.check_condition, 5)
         
@@ -447,6 +449,11 @@ class SecondScreen(Screen):
         # button_addnum2 = Button(text='add', size_hint=(0.1, 0.1), pos_hint={'center_x': 0.77, 'y': 0.5},background_color=(1, 0, 0))
         # button_addnum2.bind(on_press=self.add_num2)
         # layout.add_widget(button_addnum2)
+
+        #back
+        button_back = Button(text='Back', font_name='THSarabunNew', font_size='45sp', size_hint=(0.1, 0.1), pos_hint={'x': 0.05, 'y': 0.1},background_color=(0, 0, 1))
+        button_back.bind(on_press=self.back_to_main_screen)
+        layout.add_widget(button_back)
 
         #submit
         button_submit = Button(text='Confirm Points',font_name='THSarabunNew', font_size='60sp', size_hint=(0.4, 0.1), pos_hint={'center_x': 0.5, 'y': 0.1},background_color=(0, 0.6, 0.4, 1))
@@ -705,7 +712,7 @@ class MyApp(App):
         sm.add_widget(SecondScreen(name='second'))
         return sm
 
-row1 = len(workbook.sheet1.get_all_records())
+row1 = 0
 row2 = 0
 num1 = 0
 num2 = 0
